@@ -4,29 +4,45 @@
  * 
  * Requirements: 1.1, 1.2, 4.1, 4.4, 5.1, 5.5, 7.3
  * Requirements: 4.2, 4.3, 5.2, 5.6, 5.7, 6.5, 7.1, 7.2, 7.4, 7.6, 7.7
+ * Requirements: 12.1, 12.2, 12.3, 12.4, 12.5, 12.6, 12.7 - Markdown and LaTeX rendering
  */
 
-import { ItemView, WorkspaceLeaf, setIcon, Menu } from 'obsidian';
+import { ItemView, WorkspaceLeaf, setIcon, Menu, Component } from 'obsidian';
 import { VIEW_TYPE_CHAT, PLUGIN_NAME } from '../constants';
 import type { AIModel, ChatMessage, ContextItem } from '../types';
+import { ChatMarkdownRenderer } from './markdown-renderer';
+import { CopyManager } from './copy-manager';
+
+/**
+ * Interface for live selection data
+ * Requirements: 11.2, 11.3 - Display live selection indicator with preview
+ */
+export interface LiveSelectionInfo {
+  hasSelection: boolean;
+  preview: string;
+  sourcePath?: string;
+}
 
 /**
  * Interface for ChatView dependencies
  * Requirements: 4.2 - Model selector shows enabled models
  * Requirements: 4.3 - Model selection affects subsequent messages
  * Requirements: 5.7 - Message includes active context
+ * Requirements: 11.2, 11.3 - Live selection indicator display
  */
 export interface ChatViewDependencies {
   getAvailableModels: () => AIModel[];
   getCurrentModelId: () => string | null;
   getMessages: () => ChatMessage[];
   getContextItems: () => ContextItem[];
+  getLiveSelection: () => LiveSelectionInfo;
   getAllSessions: () => Array<{ id: string; createdAt: number; updatedAt: number; messageCount: number }>;
   getCurrentSessionId: () => string | null;
   onSendMessage: (content: string) => Promise<void>;
   onSendMessageStream: (content: string, onChunk: (chunk: string) => void) => Promise<void>;
   onModelChange: (modelId: string) => void;
   onRemoveContext: (contextId: string) => void;
+  onClearLiveSelection: () => void;
   onAddFileContext: () => Promise<void>;
   onAddFolderContext: () => Promise<void>;
   onNewSession: () => void;
@@ -50,6 +66,7 @@ export class ChatView extends ItemView {
   private sessionsAreaEl: HTMLElement | null = null;
   private messagesContainerEl: HTMLElement | null = null;
   private contextAreaEl: HTMLElement | null = null;
+  private liveSelectionEl: HTMLElement | null = null;
   private inputAreaEl: HTMLElement | null = null;
   private inputTextareaEl: HTMLTextAreaElement | null = null;
   private sendButtonEl: HTMLButtonElement | null = null;
@@ -61,6 +78,15 @@ export class ChatView extends ItemView {
   private errorMessage: string | null = null;
   private streamingMessageEl: HTMLElement | null = null;
   private isHistoryExpanded = false;
+
+  // Markdown renderer for assistant messages
+  // Requirements: 12.1, 12.2, 12.3, 12.4, 12.5, 12.6, 12.7
+  private markdownRenderer: ChatMarkdownRenderer | null = null;
+  private renderComponent: Component | null = null;
+
+  // Copy manager for clipboard operations
+  // Requirements: 13.1, 13.2, 13.3, 13.4, 13.5, 13.6, 13.7
+  private copyManager: CopyManager | null = null;
 
   constructor(leaf: WorkspaceLeaf) {
     super(leaf);
@@ -97,11 +123,21 @@ export class ChatView extends ItemView {
   /**
    * Initializes the view when opened
    * Requirements: 1.2 - Display a chat interface with message history and input area
+   * Requirements: 12.1, 12.2, 12.3, 12.4, 12.5, 12.6, 12.7 - Initialize markdown renderer
    */
   async onOpen(): Promise<void> {
     this.rootEl = this.contentEl;
     this.rootEl.empty();
     this.rootEl.addClass('ai-chat-sidebar');
+
+    // Initialize markdown renderer for assistant messages
+    this.renderComponent = new Component();
+    this.renderComponent.load();
+    this.markdownRenderer = new ChatMarkdownRenderer(this.app, this.renderComponent);
+
+    // Initialize copy manager for clipboard operations
+    // Requirements: 13.1, 13.2, 13.3, 13.4, 13.5, 13.6, 13.7
+    this.copyManager = new CopyManager();
 
     this.createHeader();
     this.createSessionsArea();
@@ -119,6 +155,17 @@ export class ChatView extends ItemView {
    * Cleanup when view is closed
    */
   async onClose(): Promise<void> {
+    // Clean up markdown renderer
+    if (this.markdownRenderer) {
+      this.markdownRenderer.clearLatexSources();
+      this.markdownRenderer = null;
+    }
+    if (this.renderComponent) {
+      this.renderComponent.unload();
+      this.renderComponent = null;
+    }
+    // Clean up copy manager
+    this.copyManager = null;
     this.rootEl?.empty();
   }
 
@@ -205,6 +252,7 @@ export class ChatView extends ItemView {
    * Requirements: 5.1 - WHEN the chat interface is displayed THEN the Plugin SHALL provide a button to add context items
    * Requirements: 5.2 - WHEN the user clicks the add context button THEN the Plugin SHALL display a file and folder picker
    * Requirements: 5.5 - WHEN context items are added THEN the Plugin SHALL display them as removable tags
+   * Requirements: 11.2, 11.3 - Display live selection indicator with eye icon and preview
    */
   private createContextArea(): void {
     if (!this.rootEl) return;
@@ -221,6 +269,12 @@ export class ChatView extends ItemView {
     setIcon(addContextBtn, 'plus');
     addContextBtn.setAttribute('aria-label', 'Add context');
     addContextBtn.addEventListener('click', (event) => this.showContextMenu(event));
+
+    // Live selection indicator area
+    // Requirements: 11.2 - Display a live selection indicator (eye icon) in the chat interface context area
+    // Requirements: 11.3 - Show a preview of the selected text content
+    this.liveSelectionEl = this.contextAreaEl.createDiv({ cls: 'ai-chat-live-selection' });
+    this.liveSelectionEl.style.display = 'none';
 
     // Context items container
     this.contextAreaEl.createDiv({ cls: 'ai-chat-context-items' });
@@ -316,6 +370,7 @@ export class ChatView extends ItemView {
   refresh(): void {
     this.renderModelSelector();
     this.renderSessions();
+    this.renderLiveSelection();
     this.renderContextItems();
     this.renderMessages();
     this.updateLoadingState();
@@ -432,6 +487,60 @@ export class ChatView extends ItemView {
   }
 
   /**
+   * Renders the live selection indicator
+   * Requirements: 11.2 - Display a live selection indicator (eye icon) in the chat interface context area
+   * Requirements: 11.3 - Show a preview of the selected text content
+   */
+  renderLiveSelection(): void {
+    if (!this.liveSelectionEl || !this.dependencies) return;
+
+    const liveSelection = this.dependencies.getLiveSelection();
+
+    // Clear existing content
+    this.liveSelectionEl.empty();
+
+    if (!liveSelection.hasSelection) {
+      this.liveSelectionEl.style.display = 'none';
+      return;
+    }
+
+    this.liveSelectionEl.style.display = 'flex';
+
+    // Eye icon
+    const iconEl = this.liveSelectionEl.createSpan({ cls: 'ai-chat-live-selection-icon' });
+    setIcon(iconEl, 'eye');
+
+    // Label
+    const labelEl = this.liveSelectionEl.createSpan({ cls: 'ai-chat-live-selection-label' });
+    labelEl.setText('Live Selection');
+
+    // Source path (if available)
+    if (liveSelection.sourcePath) {
+      const sourceEl = this.liveSelectionEl.createSpan({ cls: 'ai-chat-live-selection-source' });
+      const fileName = liveSelection.sourcePath.split('/').pop() || liveSelection.sourcePath;
+      sourceEl.setText(`from ${fileName}`);
+      sourceEl.setAttribute('title', liveSelection.sourcePath);
+    }
+
+    // Preview text (truncated)
+    const previewEl = this.liveSelectionEl.createDiv({ cls: 'ai-chat-live-selection-preview' });
+    previewEl.setText(liveSelection.preview);
+    previewEl.setAttribute('title', liveSelection.preview);
+
+    // Clear button (X) to manually remove the live selection
+    const clearBtn = this.liveSelectionEl.createSpan({ 
+      cls: 'ai-chat-live-selection-clear',
+      attr: { 'aria-label': 'Clear live selection' }
+    });
+    setIcon(clearBtn, 'x');
+    clearBtn.addEventListener('click', () => {
+      if (this.dependencies) {
+        this.dependencies.onClearLiveSelection();
+      }
+    });
+  }
+
+  /**
    * Renders context items as removable tags
    * Requirements: 5.5 - Display context items as removable tags
    */
@@ -505,6 +614,8 @@ export class ChatView extends ItemView {
 
   /**
    * Renders a single message
+   * Requirements: 12.1, 12.2, 12.3, 12.4, 12.5, 12.6, 12.7 - Render assistant messages with markdown
+   * Requirements: 13.1, 13.2, 13.3, 13.4, 13.5, 13.6, 13.7 - Add copy buttons
    */
   private renderMessage(message: ChatMessage): void {
     if (!this.messagesContainerEl) return;
@@ -524,7 +635,34 @@ export class ChatView extends ItemView {
 
     // Message content
     const contentEl = messageEl.createDiv({ cls: 'ai-chat-message-content' });
-    contentEl.setText(message.content);
+    
+    // Apply markdown rendering to assistant messages
+    // Requirements: 12.1, 12.2, 12.3, 12.4, 12.5, 12.6, 12.7
+    if (message.role === 'assistant' && this.markdownRenderer) {
+      // Render markdown asynchronously
+      this.markdownRenderer.render(message.content, contentEl).then(() => {
+        // Add copy buttons after markdown is rendered
+        // Requirements: 13.1, 13.2, 13.3, 13.4, 13.5, 13.6, 13.7
+        if (this.copyManager && this.markdownRenderer) {
+          this.copyManager.processMessageForCopyButtons(
+            messageEl,
+            message.content,
+            (id) => this.markdownRenderer?.getLatexSource(id)
+          );
+        }
+      }).catch((error) => {
+        // Fallback to plain text on error
+        console.error('Failed to render markdown:', error);
+        contentEl.setText(message.content);
+        // Still add message copy button even on error
+        if (this.copyManager) {
+          this.copyManager.addMessageCopyButton(messageEl, message.content);
+        }
+      });
+    } else {
+      // User messages and system messages as plain text
+      contentEl.setText(message.content);
+    }
   }
 
   /**
@@ -771,11 +909,40 @@ export class ChatView extends ItemView {
   }
 
   /**
-   * Finalizes the streaming message (removes streaming class)
+   * Finalizes the streaming message (removes streaming class and renders markdown)
+   * Requirements: 12.1, 12.2, 12.3, 12.4, 12.5, 12.6, 12.7 - Re-render with markdown after streaming
+   * Requirements: 13.1, 13.2, 13.3, 13.4, 13.5, 13.6, 13.7 - Add copy buttons after streaming
    */
   private finalizeStreamingMessage(): void {
     if (this.streamingMessageEl) {
       this.streamingMessageEl.removeClass('ai-chat-message-streaming');
+      
+      // Re-render the content with markdown
+      const contentEl = this.streamingMessageEl.querySelector('.ai-chat-message-content');
+      const messageEl = this.streamingMessageEl;
+      if (contentEl && this.markdownRenderer) {
+        const plainText = contentEl.textContent || '';
+        // Clear and re-render with markdown
+        this.markdownRenderer.render(plainText, contentEl as HTMLElement).then(() => {
+          // Add copy buttons after markdown is rendered
+          // Requirements: 13.1, 13.2, 13.3, 13.4, 13.5, 13.6, 13.7
+          if (this.copyManager && this.markdownRenderer) {
+            this.copyManager.processMessageForCopyButtons(
+              messageEl,
+              plainText,
+              (id) => this.markdownRenderer?.getLatexSource(id)
+            );
+          }
+        }).catch((error) => {
+          console.error('Failed to render markdown after streaming:', error);
+          // Content is already there as plain text, so no fallback needed
+          // Still add message copy button even on error
+          if (this.copyManager) {
+            this.copyManager.addMessageCopyButton(messageEl, plainText);
+          }
+        });
+      }
+      
       this.streamingMessageEl = null;
     }
   }

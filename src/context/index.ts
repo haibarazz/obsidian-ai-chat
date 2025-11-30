@@ -13,3 +13,5 @@ export {
   createObsidianAdapter,
   type FileSystemAdapter,
 } from './context-manager';
+
+export { LiveSelectionManager } from './live-selection';

@@ -87,3 +87,13 @@ export interface ModelValidationResult {
   valid: boolean;
   errors: string[];
 }
+
+/**
+ * Represents a temporary live selection context that tracks the user's current text selection
+ * Requirements: 11.1, 11.4, 11.5
+ */
+export interface LiveSelection {
+  content: string;
+  sourcePath?: string;
+  timestamp: number;
+}

@@ -396,6 +396,82 @@
   color: var(--interactive-accent);
 }
 
+/* ==================== Live Selection Indicator ==================== */
+/* Requirements: 11.2, 11.3 - Display live selection indicator with eye icon and preview */
+.ai-chat-live-selection {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  border-radius: var(--radius-s);
+  background-color: var(--background-primary);
+  border: 1px dashed var(--interactive-accent);
+  font-size: var(--font-ui-smaller);
+}
+
+.ai-chat-live-selection-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--interactive-accent);
+}
+
+.ai-chat-live-selection-icon svg {
+  width: 14px;
+  height: 14px;
+}
+
+.ai-chat-live-selection-label {
+  font-weight: var(--font-medium);
+  color: var(--interactive-accent);
+  white-space: nowrap;
+}
+
+.ai-chat-live-selection-source {
+  color: var(--text-muted);
+  font-style: italic;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100px;
+}
+
+.ai-chat-live-selection-preview {
+  flex: 1;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-style: italic;
+  padding-left: 8px;
+  border-left: 1px solid var(--background-modifier-border);
+}
+
+.ai-chat-live-selection-clear {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  color: var(--text-muted);
+  opacity: 0.6;
+  transition: opacity 0.2s, color 0.2s;
+}
+
+.ai-chat-live-selection-clear:hover {
+  opacity: 1;
+  color: var(--text-error);
+}
+
+.ai-chat-live-selection-clear svg {
+  width: 12px;
+  height: 12px;
+}
+
 /* ==================== Messages Container ==================== */
 .ai-chat-messages {
   flex: 1;
@@ -425,6 +501,7 @@
   padding: 10px 12px;
   border-radius: var(--radius-m);
   max-width: 90%;
+  position: relative;  /* 为绝对定位的复制按钮提供参考 */
 }
 
 .ai-chat-message-user {
@@ -472,8 +549,7 @@
 
 .ai-chat-message-content {
   font-size: var(--font-ui-small);
-  line-height: 1.5;
-  white-space: pre-wrap;
+  line-height: 1.4;
   word-wrap: break-word;
 }
 
@@ -788,5 +864,803 @@
   .ai-chat-message {
     break-inside: avoid;
     page-break-inside: avoid;
+  }
+}
+
+
+/* ==================== Copy Buttons ==================== */
+/* Requirements: 13.1, 13.2, 13.3, 13.4, 13.5, 13.6, 13.7 */
+
+/* Base copy button styles */
+.ai-chat-copy-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-s);
+  background-color: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+}
+
+.ai-chat-copy-btn:hover {
+  background-color: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+.ai-chat-copy-btn:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 2px;
+  opacity: 1;
+}
+
+.ai-chat-copy-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Copy success state */
+.ai-chat-copy-success {
+  color: var(--color-green) !important;
+}
+
+/* Message copy button - 移到右下角 */
+.ai-chat-message-copy-btn {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  opacity: 0;  /* 默认隐藏 */
+  transition: opacity 0.2s;
+  z-index: 10;  /* 确保在内容之上 */
+}
+
+/* Show copy button on message hover */
+.ai-chat-message:hover .ai-chat-message-copy-btn {
+  opacity: 1;
+}
+
+/* Assistant message specific styling */
+.ai-chat-message-assistant .ai-chat-message-copy-btn {
+  color: var(--text-muted);
+}
+
+.ai-chat-message-assistant:hover .ai-chat-message-copy-btn:hover {
+  background-color: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+/* Code block wrapper for positioning */
+.ai-chat-code-block-wrapper {
+  position: relative;
+  margin: 8px 0;
+}
+
+/* Code block copy button */
+.ai-chat-code-copy-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background-color: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  z-index: 1;
+}
+
+/* Show code copy button on hover */
+.ai-chat-code-block-wrapper:hover .ai-chat-code-copy-btn {
+  opacity: 1;
+}
+
+.ai-chat-code-copy-btn:hover {
+  background-color: var(--background-modifier-hover);
+  border-color: var(--background-modifier-border-hover);
+}
+
+/* LaTeX wrapper for positioning */
+.ai-chat-latex-wrapper {
+  position: relative;
+  display: inline-block;
+  margin: 8px 0;
+}
+
+/* Display mode LaTeX wrapper */
+.ai-chat-latex-wrapper:has(.math-display),
+.ai-chat-latex-wrapper:has(.MathJax_Display),
+.ai-chat-latex-wrapper:has(mjx-container[display="true"]),
+.ai-chat-latex-wrapper:has(.ai-chat-latex-display) {
+  display: block;
+  text-align: center;
+}
+
+/* LaTeX copy button */
+.ai-chat-latex-copy-btn {
+  position: absolute;
+  top: 0;
+  right: -28px;
+  background-color: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+}
+
+/* Show LaTeX copy button on hover */
+.ai-chat-latex-wrapper:hover .ai-chat-latex-copy-btn {
+  opacity: 1;
+}
+
+.ai-chat-latex-copy-btn:hover {
+  background-color: var(--background-modifier-hover);
+  border-color: var(--background-modifier-border-hover);
+}
+
+/* Adjust message header to accommodate copy button */
+.ai-chat-message-header {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+}
+
+/* Ensure timestamp doesn't push copy button too far */
+.ai-chat-message-timestamp {
+  flex-shrink: 0;
+}
+
+/* Mobile adjustments for copy buttons */
+.is-mobile .ai-chat-copy-btn {
+  opacity: 0.7;
+  width: 28px;
+  height: 28px;
+}
+
+.is-mobile .ai-chat-copy-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Accessibility - always show copy buttons when focused */
+.ai-chat-copy-btn:focus {
+  opacity: 1;
+}
+
+/* Reduced motion - disable transitions */
+@media (prefers-reduced-motion: reduce) {
+  .ai-chat-copy-btn {
+    transition: none;
+  }
+}
+
+/* High contrast mode */
+@media (prefers-contrast: high) {
+  .ai-chat-copy-btn {
+    border: 1px solid var(--text-muted);
+  }
+  
+  .ai-chat-copy-success {
+    border-color: var(--color-green);
+  }
+}
+
+/* ==================== Markdown Rendered Content ==================== */
+/* Requirements: 12.1, 12.2, 12.3, 12.4, 12.5, 12.6, 12.7 */
+
+/* Container for markdown-rendered content - 紧凑排版 */
+.ai-chat-markdown-rendered,
+.ai-chat-markdown-rendered.markdown-rendered {
+  line-height: 1.4 !important;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  font-size: var(--font-ui-small);
+}
+
+/* 重置所有元素的默认间距 - 非常重要！ */
+.ai-chat-markdown-rendered *,
+.ai-chat-markdown-rendered.markdown-rendered * {
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+/* 针对 Obsidian 渲染的 div 容器 */
+.ai-chat-markdown-rendered > div,
+.ai-chat-markdown-rendered .markdown-preview-view,
+.ai-chat-markdown-rendered .markdown-preview-section,
+.ai-chat-markdown-rendered .markdown-preview-sizer {
+  margin: 0 !important;
+  padding: 0 !important;
+  min-height: unset !important;
+}
+
+/* 覆盖 Obsidian 的 cm-s-obsidian 样式 */
+.ai-chat-markdown-rendered .cm-s-obsidian,
+.ai-chat-markdown-rendered .markdown-source-view {
+  line-height: 1.4 !important;
+}
+
+/* Headings within messages */
+/* Requirements: 12.1 - Render headings, bold, italic, and other text formatting */
+.ai-chat-markdown-rendered h1,
+.ai-chat-markdown-rendered h2,
+.ai-chat-markdown-rendered h3,
+.ai-chat-markdown-rendered h4,
+.ai-chat-markdown-rendered h5,
+.ai-chat-markdown-rendered h6 {
+  margin-top: 0.5em !important;
+  margin-bottom: 0.15em !important;
+  font-weight: var(--font-semibold);
+  line-height: 1.25 !important;
+  color: var(--text-normal);
+  padding: 0 !important;
+  border: none !important;
+}
+
+.ai-chat-markdown-rendered h1 {
+  font-size: 1.3em;
+}
+
+.ai-chat-markdown-rendered h2 {
+  font-size: 1.15em;
+}
+
+.ai-chat-markdown-rendered h3 {
+  font-size: 1.05em;
+}
+
+.ai-chat-markdown-rendered h4,
+.ai-chat-markdown-rendered h5,
+.ai-chat-markdown-rendered h6 {
+  font-size: 1em;
+}
+
+/* First element should not have top margin */
+.ai-chat-markdown-rendered > :first-child,
+.ai-chat-markdown-rendered > div > :first-child {
+  margin-top: 0 !important;
+}
+
+/* Last element should not have bottom margin */
+.ai-chat-markdown-rendered > :last-child,
+.ai-chat-markdown-rendered > div > :last-child {
+  margin-bottom: 0 !important;
+}
+
+/* Bold and italic text */
+.ai-chat-markdown-rendered strong {
+  font-weight: var(--font-semibold);
+  color: var(--text-normal);
+}
+
+.ai-chat-markdown-rendered em {
+  font-style: italic;
+}
+
+.ai-chat-markdown-rendered strong em,
+.ai-chat-markdown-rendered em strong {
+  font-weight: var(--font-semibold);
+  font-style: italic;
+}
+
+/* Strikethrough */
+.ai-chat-markdown-rendered del,
+.ai-chat-markdown-rendered s {
+  text-decoration: line-through;
+  color: var(--text-muted);
+}
+
+/* Paragraphs - 紧凑，段落间有适当间距 */
+.ai-chat-markdown-rendered p {
+  margin: 0.35em 0 !important;
+  line-height: 1.4 !important;
+}
+
+.ai-chat-markdown-rendered p:first-child {
+  margin-top: 0 !important;
+}
+
+.ai-chat-markdown-rendered p:last-child {
+  margin-bottom: 0 !important;
+}
+
+/* 连续段落之间的间距 */
+.ai-chat-markdown-rendered p + p {
+  margin-top: 0.4em !important;
+}
+
+/* Lists - 紧凑 */
+/* Requirements: 12.5 - Render lists with proper indentation and markers */
+.ai-chat-markdown-rendered ul,
+.ai-chat-markdown-rendered ol {
+  margin: 0.3em 0 !important;
+  padding-left: 1.5em !important;
+}
+
+.ai-chat-markdown-rendered ul {
+  list-style-type: disc;
+}
+
+.ai-chat-markdown-rendered ol {
+  list-style-type: decimal;
+}
+
+.ai-chat-markdown-rendered li {
+  margin: 0.1em 0 !important;
+  padding: 0 !important;
+  line-height: 1.4 !important;
+}
+
+/* 列表项内的段落不需要额外间距 */
+.ai-chat-markdown-rendered li > p,
+.ai-chat-markdown-rendered li > div {
+  margin: 0 !important;
+  padding: 0 !important;
+  display: inline;
+}
+
+/* 嵌套列表 - 减少间距 */
+.ai-chat-markdown-rendered li > ul,
+.ai-chat-markdown-rendered li > ol {
+  margin: 0.1em 0 !important;
+  padding-left: 1.2em !important;
+}
+
+/* 列表前后与其他元素的间距 */
+.ai-chat-markdown-rendered p + ul,
+.ai-chat-markdown-rendered p + ol {
+  margin-top: 0.2em !important;
+}
+
+.ai-chat-markdown-rendered ul + p,
+.ai-chat-markdown-rendered ol + p {
+  margin-top: 0.3em !important;
+}
+
+/* Nested lists */
+.ai-chat-markdown-rendered ul ul,
+.ai-chat-markdown-rendered ol ul {
+  list-style-type: circle;
+}
+
+.ai-chat-markdown-rendered ul ul ul,
+.ai-chat-markdown-rendered ol ul ul,
+.ai-chat-markdown-rendered ul ol ul,
+.ai-chat-markdown-rendered ol ol ul {
+  list-style-type: square;
+}
+
+.ai-chat-markdown-rendered ol ol,
+.ai-chat-markdown-rendered ul ol {
+  list-style-type: lower-alpha;
+}
+
+/* Task lists */
+.ai-chat-markdown-rendered .task-list-item {
+  list-style-type: none;
+  margin-left: -1.5em;
+  padding-left: 1.5em;
+}
+
+.ai-chat-markdown-rendered .task-list-item input[type="checkbox"] {
+  margin-right: 0.5em;
+}
+
+/* Links */
+/* Requirements: 12.6 - Render links as clickable hyperlinks */
+.ai-chat-markdown-rendered a {
+  color: var(--text-accent);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.ai-chat-markdown-rendered a:hover {
+  text-decoration: underline;
+  color: var(--text-accent-hover);
+}
+
+.ai-chat-markdown-rendered a:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* External link indicator */
+.ai-chat-markdown-rendered a.external-link::after {
+  content: '';
+  display: inline-block;
+  width: 0.7em;
+  height: 0.7em;
+  margin-left: 0.2em;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6'%3E%3C/path%3E%3Cpolyline points='15 3 21 3 21 9'%3E%3C/polyline%3E%3Cline x1='10' y1='14' x2='21' y2='3'%3E%3C/line%3E%3C/svg%3E");
+  background-size: contain;
+  background-repeat: no-repeat;
+  opacity: 0.6;
+}
+
+/* Blockquotes */
+/* Requirements: 12.7 - Render blockquotes with appropriate styling */
+.ai-chat-markdown-rendered blockquote {
+  margin: 0.4em 0 !important;
+  padding: 0.3em 0.8em !important;
+  border-left: 3px solid var(--interactive-accent);
+  background-color: var(--background-secondary);
+  color: var(--text-muted);
+  border-radius: 0 var(--radius-s) var(--radius-s) 0;
+}
+
+.ai-chat-markdown-rendered blockquote p {
+  margin: 0.15em 0 !important;
+}
+
+.ai-chat-markdown-rendered blockquote p:first-child {
+  margin-top: 0 !important;
+}
+
+.ai-chat-markdown-rendered blockquote p:last-child {
+  margin-bottom: 0 !important;
+}
+
+/* Nested blockquotes */
+.ai-chat-markdown-rendered blockquote blockquote {
+  margin: 0.2em 0 0.2em 0.5em !important;
+  border-left-color: var(--text-muted);
+}
+
+/* Inline code */
+/* Requirements: 12.3 - Render inline code with monospace styling */
+.ai-chat-markdown-rendered code:not(pre code) {
+  background-color: var(--background-modifier-code);
+  padding: 0.15em 0.4em;
+  border-radius: var(--radius-s);
+  font-family: var(--font-monospace);
+  font-size: 0.9em;
+  color: var(--text-normal);
+  word-break: break-word;
+}
+
+/* Code blocks */
+/* Requirements: 12.2 - Render code blocks with syntax highlighting */
+.ai-chat-markdown-rendered pre {
+  margin: 0.4em 0 !important;
+  padding: 0 !important;
+  border-radius: var(--radius-m);
+  background-color: var(--background-modifier-code);
+  overflow: hidden;
+}
+
+.ai-chat-markdown-rendered pre code {
+  display: block;
+  padding: 0.6em 0.8em !important;
+  overflow-x: auto;
+  font-family: var(--font-monospace);
+  font-size: 0.85em;
+  line-height: 1.4;
+  tab-size: 4;
+  white-space: pre;
+  background-color: transparent;
+  color: var(--text-normal);
+}
+
+/* Code block with language label */
+.ai-chat-markdown-rendered pre[data-language]::before {
+  content: attr(data-language);
+  display: block;
+  padding: 0.3em 1em;
+  font-size: 0.75em;
+  font-family: var(--font-interface);
+  color: var(--text-muted);
+  background-color: var(--background-secondary);
+  border-bottom: 1px solid var(--background-modifier-border);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Syntax highlighting colors - using Obsidian's theme variables */
+.ai-chat-markdown-rendered .token.comment,
+.ai-chat-markdown-rendered .token.prolog,
+.ai-chat-markdown-rendered .token.doctype,
+.ai-chat-markdown-rendered .token.cdata {
+  color: var(--text-faint);
+  font-style: italic;
+}
+
+.ai-chat-markdown-rendered .token.punctuation {
+  color: var(--text-muted);
+}
+
+.ai-chat-markdown-rendered .token.property,
+.ai-chat-markdown-rendered .token.tag,
+.ai-chat-markdown-rendered .token.boolean,
+.ai-chat-markdown-rendered .token.number,
+.ai-chat-markdown-rendered .token.constant,
+.ai-chat-markdown-rendered .token.symbol,
+.ai-chat-markdown-rendered .token.deleted {
+  color: var(--color-red);
+}
+
+.ai-chat-markdown-rendered .token.selector,
+.ai-chat-markdown-rendered .token.attr-name,
+.ai-chat-markdown-rendered .token.string,
+.ai-chat-markdown-rendered .token.char,
+.ai-chat-markdown-rendered .token.builtin,
+.ai-chat-markdown-rendered .token.inserted {
+  color: var(--color-green);
+}
+
+.ai-chat-markdown-rendered .token.operator,
+.ai-chat-markdown-rendered .token.entity,
+.ai-chat-markdown-rendered .token.url,
+.ai-chat-markdown-rendered .language-css .token.string,
+.ai-chat-markdown-rendered .style .token.string {
+  color: var(--color-orange);
+}
+
+.ai-chat-markdown-rendered .token.atrule,
+.ai-chat-markdown-rendered .token.attr-value,
+.ai-chat-markdown-rendered .token.keyword {
+  color: var(--color-blue);
+}
+
+.ai-chat-markdown-rendered .token.function,
+.ai-chat-markdown-rendered .token.class-name {
+  color: var(--color-yellow);
+}
+
+.ai-chat-markdown-rendered .token.regex,
+.ai-chat-markdown-rendered .token.important,
+.ai-chat-markdown-rendered .token.variable {
+  color: var(--color-purple);
+}
+
+/* Horizontal rules */
+.ai-chat-markdown-rendered hr {
+  margin: 0.5em 0 !important;
+  border: none !important;
+  border-top: 1px solid var(--background-modifier-border) !important;
+}
+
+/* Tables */
+.ai-chat-markdown-rendered table {
+  width: 100%;
+  margin: 0.4em 0 !important;
+  border-collapse: collapse;
+  font-size: 0.9em;
+}
+
+.ai-chat-markdown-rendered th,
+.ai-chat-markdown-rendered td {
+  padding: 0.5em 0.75em;
+  border: 1px solid var(--background-modifier-border);
+  text-align: left;
+}
+
+.ai-chat-markdown-rendered th {
+  background-color: var(--background-secondary);
+  font-weight: var(--font-semibold);
+}
+
+.ai-chat-markdown-rendered tr:nth-child(even) {
+  background-color: var(--background-secondary-alt);
+}
+
+/* Images */
+.ai-chat-markdown-rendered img {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius-s);
+  margin: 0.5em 0;
+}
+
+/* ==================== LaTeX Formula Styles ==================== */
+/* Requirements: 12.4 - Render LaTeX formulas as mathematical notation */
+
+/* Inline LaTeX */
+.ai-chat-markdown-rendered .math-inline,
+.ai-chat-markdown-rendered mjx-container:not([display="true"]),
+.ai-chat-latex-inline {
+  display: inline;
+  vertical-align: middle;
+}
+
+/* Display mode LaTeX */
+.ai-chat-markdown-rendered .math-display,
+.ai-chat-markdown-rendered .MathJax_Display,
+.ai-chat-markdown-rendered mjx-container[display="true"],
+.ai-chat-latex-display {
+  display: block;
+  margin: 0.5em 0 !important;
+  text-align: center;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.3em 0 !important;
+}
+
+/* MathJax container styling */
+.ai-chat-markdown-rendered mjx-container {
+  font-size: 1.1em !important;
+}
+
+/* Ensure math doesn't overflow */
+.ai-chat-markdown-rendered .MathJax,
+.ai-chat-markdown-rendered mjx-math {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+/* LaTeX wrapper for copy button positioning */
+.ai-chat-latex-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.ai-chat-latex-wrapper:has(.math-display),
+.ai-chat-latex-wrapper:has(.MathJax_Display),
+.ai-chat-latex-wrapper:has(mjx-container[display="true"]),
+.ai-chat-latex-wrapper:has(.ai-chat-latex-display) {
+  display: block;
+  text-align: center;
+}
+
+/* ==================== Copy Button Animations ==================== */
+/* Requirements: 13.3 - Display a brief visual confirmation */
+
+/* Copy success animation */
+@keyframes ai-chat-copy-success-pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.ai-chat-copy-success {
+  animation: ai-chat-copy-success-pulse 0.3s ease-out;
+}
+
+/* Copy button fade-in on hover */
+@keyframes ai-chat-copy-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.ai-chat-message:hover .ai-chat-message-copy-btn,
+.ai-chat-code-block-wrapper:hover .ai-chat-code-copy-btn,
+.ai-chat-latex-wrapper:hover .ai-chat-latex-copy-btn {
+  animation: ai-chat-copy-fade-in 0.15s ease-out forwards;
+}
+
+/* Smooth icon transition */
+.ai-chat-copy-btn svg {
+  transition: transform 0.15s ease;
+}
+
+.ai-chat-copy-btn:hover svg {
+  transform: scale(1.1);
+}
+
+.ai-chat-copy-success svg {
+  transform: scale(1.2);
+}
+
+/* ==================== Enhanced Live Selection Styles ==================== */
+/* Requirements: 11.2, 11.3 - Enhanced live selection indicator */
+
+/* Pulsing animation for live selection indicator */
+@keyframes ai-chat-live-selection-pulse {
+  0%, 100% {
+    border-color: var(--interactive-accent);
+    opacity: 1;
+  }
+  50% {
+    border-color: var(--interactive-accent-hover);
+    opacity: 0.8;
+  }
+}
+
+.ai-chat-live-selection {
+  animation: ai-chat-live-selection-pulse 2s ease-in-out infinite;
+}
+
+/* Live selection content wrapper */
+.ai-chat-live-selection-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  gap: 2px;
+}
+
+/* Live selection header row */
+.ai-chat-live-selection-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ==================== Accessibility Enhancements ==================== */
+
+/* Focus styles for interactive elements in markdown */
+.ai-chat-markdown-rendered a:focus,
+.ai-chat-markdown-rendered button:focus {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 2px;
+}
+
+/* Reduced motion - disable animations */
+@media (prefers-reduced-motion: reduce) {
+  .ai-chat-copy-success {
+    animation: none;
+  }
+  
+  .ai-chat-live-selection {
+    animation: none;
+  }
+  
+  .ai-chat-message:hover .ai-chat-message-copy-btn,
+  .ai-chat-code-block-wrapper:hover .ai-chat-code-copy-btn,
+  .ai-chat-latex-wrapper:hover .ai-chat-latex-copy-btn {
+    animation: none;
+    opacity: 1;
+  }
+  
+  .ai-chat-copy-btn svg {
+    transition: none;
+  }
+}
+
+/* High contrast mode for markdown content */
+@media (prefers-contrast: high) {
+  .ai-chat-markdown-rendered blockquote {
+    border-left-width: 4px;
+    border-left-color: var(--text-normal);
+  }
+  
+  .ai-chat-markdown-rendered pre {
+    border: 2px solid var(--text-normal);
+  }
+  
+  .ai-chat-markdown-rendered code:not(pre code) {
+    border: 1px solid var(--text-muted);
+  }
+  
+  .ai-chat-markdown-rendered a {
+    text-decoration: underline;
+  }
+  
+  .ai-chat-live-selection {
+    border-width: 2px;
+    border-style: solid;
+  }
+}
+
+/* ==================== Print Styles for Markdown ==================== */
+@media print {
+  .ai-chat-markdown-rendered pre {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+  }
+  
+  .ai-chat-markdown-rendered a::after {
+    content: " (" attr(href) ")";
+    font-size: 0.8em;
+    color: var(--text-muted);
+  }
+  
+  .ai-chat-copy-btn {
+    display: none !important;
+  }
+  
+  .ai-chat-live-selection {
+    animation: none;
+    border-style: solid;
   }
 }
