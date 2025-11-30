@@ -21,6 +21,8 @@ export interface ChatViewDependencies {
   getCurrentModelId: () => string | null;
   getMessages: () => ChatMessage[];
   getContextItems: () => ContextItem[];
+  getAllSessions: () => Array<{ id: string; createdAt: number; updatedAt: number; messageCount: number }>;
+  getCurrentSessionId: () => string | null;
   onSendMessage: (content: string) => Promise<void>;
   onSendMessageStream: (content: string, onChunk: (chunk: string) => void) => Promise<void>;
   onModelChange: (modelId: string) => void;
@@ -28,6 +30,8 @@ export interface ChatViewDependencies {
   onAddFileContext: () => Promise<void>;
   onAddFolderContext: () => Promise<void>;
   onNewSession: () => void;
+  onSwitchSession: (sessionId: string) => void;
+  onDeleteSession: (sessionId: string) => void;
   isStreamingEnabled: () => boolean;
 }
 
@@ -43,6 +47,7 @@ export class ChatView extends ItemView {
   private rootEl: HTMLElement | null = null;
   private headerEl: HTMLElement | null = null;
   private modelSelectorEl: HTMLSelectElement | null = null;
+  private sessionsAreaEl: HTMLElement | null = null;
   private messagesContainerEl: HTMLElement | null = null;
   private contextAreaEl: HTMLElement | null = null;
   private inputAreaEl: HTMLElement | null = null;
@@ -55,6 +60,7 @@ export class ChatView extends ItemView {
   private isLoading = false;
   private errorMessage: string | null = null;
   private streamingMessageEl: HTMLElement | null = null;
+  private isHistoryExpanded = false;
 
   constructor(leaf: WorkspaceLeaf) {
     super(leaf);
@@ -98,6 +104,7 @@ export class ChatView extends ItemView {
     this.rootEl.addClass('ai-chat-sidebar');
 
     this.createHeader();
+    this.createSessionsArea();
     this.createContextArea();
     this.createMessagesContainer();
     this.createInputArea();
@@ -116,7 +123,7 @@ export class ChatView extends ItemView {
   }
 
   /**
-   * Creates the header section with model selector
+   * Creates the header section with model selector and new session button
    * Requirements: 4.1 - WHEN the chat interface is displayed THEN the Plugin SHALL show a model selector dropdown
    * Requirements: 4.4 - WHEN a model is selected THEN the Plugin SHALL display the current model name prominently
    */
@@ -125,9 +132,28 @@ export class ChatView extends ItemView {
 
     this.headerEl = this.rootEl.createDiv({ cls: 'ai-chat-header' });
     
-    // Title
-    const titleEl = this.headerEl.createDiv({ cls: 'ai-chat-title' });
+    // Title row with new session button
+    const titleRow = this.headerEl.createDiv({ cls: 'ai-chat-title-row' });
+    
+    const titleEl = titleRow.createDiv({ cls: 'ai-chat-title' });
     titleEl.setText('AI Chat');
+
+    // Header buttons container
+    const headerBtns = titleRow.createDiv({ cls: 'ai-chat-header-btns' });
+
+    // History toggle button
+    const historyBtn = headerBtns.createEl('button', { cls: 'ai-chat-history-btn' });
+    setIcon(historyBtn, 'history');
+    historyBtn.setAttribute('aria-label', 'Chat history');
+    historyBtn.setAttribute('title', 'Chat history');
+    historyBtn.addEventListener('click', () => this.toggleHistory());
+
+    // New session button
+    const newSessionBtn = headerBtns.createEl('button', { cls: 'ai-chat-new-session-btn' });
+    setIcon(newSessionBtn, 'plus');
+    newSessionBtn.setAttribute('aria-label', 'New chat session');
+    newSessionBtn.setAttribute('title', 'New chat session');
+    newSessionBtn.addEventListener('click', () => this.handleNewSession());
 
     // Model selector container
     const modelSelectorContainer = this.headerEl.createDiv({ cls: 'ai-chat-model-selector-container' });
@@ -137,6 +163,41 @@ export class ChatView extends ItemView {
 
     this.modelSelectorEl = modelSelectorContainer.createEl('select', { cls: 'ai-chat-model-selector' });
     this.modelSelectorEl.addEventListener('change', () => this.handleModelChange());
+  }
+
+  /**
+   * Creates the sessions area for displaying chat history (collapsible)
+   */
+  private createSessionsArea(): void {
+    if (!this.rootEl) return;
+
+    this.sessionsAreaEl = this.rootEl.createDiv({ cls: 'ai-chat-sessions-area ai-chat-sessions-collapsed' });
+    
+    // Sessions header
+    const sessionsHeader = this.sessionsAreaEl.createDiv({ cls: 'ai-chat-sessions-header' });
+    
+    const sessionsLabel = sessionsHeader.createSpan({ cls: 'ai-chat-sessions-label' });
+    sessionsLabel.setText('Chat History');
+
+    // Sessions list container
+    this.sessionsAreaEl.createDiv({ cls: 'ai-chat-sessions-list' });
+  }
+
+  /**
+   * Toggles the history panel visibility
+   */
+  private toggleHistory(): void {
+    this.isHistoryExpanded = !this.isHistoryExpanded;
+    
+    if (this.sessionsAreaEl) {
+      if (this.isHistoryExpanded) {
+        this.sessionsAreaEl.removeClass('ai-chat-sessions-collapsed');
+        this.sessionsAreaEl.addClass('ai-chat-sessions-expanded');
+      } else {
+        this.sessionsAreaEl.removeClass('ai-chat-sessions-expanded');
+        this.sessionsAreaEl.addClass('ai-chat-sessions-collapsed');
+      }
+    }
   }
 
   /**
@@ -254,6 +315,7 @@ export class ChatView extends ItemView {
    */
   refresh(): void {
     this.renderModelSelector();
+    this.renderSessions();
     this.renderContextItems();
     this.renderMessages();
     this.updateLoadingState();
@@ -290,6 +352,83 @@ export class ChatView extends ItemView {
         option.selected = true;
       }
     }
+  }
+
+  /**
+   * Renders the sessions list
+   */
+  renderSessions(): void {
+    if (!this.sessionsAreaEl || !this.dependencies) return;
+
+    const sessionsListContainer = this.sessionsAreaEl.querySelector('.ai-chat-sessions-list');
+    if (!sessionsListContainer) return;
+
+    sessionsListContainer.empty();
+
+    const sessions = this.dependencies.getAllSessions();
+    const currentSessionId = this.dependencies.getCurrentSessionId();
+
+    if (sessions.length === 0) {
+      const emptyText = sessionsListContainer.createSpan({ cls: 'ai-chat-sessions-empty' });
+      emptyText.setText('No chat history');
+      return;
+    }
+
+    // Sort sessions by updatedAt descending (most recent first)
+    const sortedSessions = [...sessions].sort((a, b) => b.updatedAt - a.updatedAt);
+
+    for (const session of sortedSessions) {
+      const isActive = session.id === currentSessionId;
+      const sessionEl = sessionsListContainer.createDiv({ 
+        cls: `ai-chat-session-item ${isActive ? 'ai-chat-session-item-active' : ''}` 
+      });
+
+      // Session info
+      const sessionInfo = sessionEl.createDiv({ cls: 'ai-chat-session-info' });
+      sessionInfo.addEventListener('click', () => this.handleSwitchSession(session.id));
+
+      // Session title (date/time)
+      const sessionTitle = sessionInfo.createDiv({ cls: 'ai-chat-session-title' });
+      sessionTitle.setText(this.formatSessionDate(session.createdAt));
+
+      // Session meta (message count)
+      const sessionMeta = sessionInfo.createDiv({ cls: 'ai-chat-session-meta' });
+      sessionMeta.setText(`${session.messageCount} messages`);
+
+      // Delete button
+      const deleteBtn = sessionEl.createEl('button', { cls: 'ai-chat-session-delete-btn' });
+      setIcon(deleteBtn, 'trash-2');
+      deleteBtn.setAttribute('aria-label', 'Delete session');
+      deleteBtn.setAttribute('title', 'Delete session');
+      deleteBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.handleDeleteSession(session.id);
+      });
+    }
+  }
+
+  /**
+   * Formats a session date for display
+   */
+  private formatSessionDate(timestamp: number): string {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const isToday = date.toDateString() === now.toDateString();
+    
+    if (isToday) {
+      return `Today ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+    }
+    
+    const yesterday = new Date(now);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const isYesterday = date.toDateString() === yesterday.toDateString();
+    
+    if (isYesterday) {
+      return `Yesterday ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+    }
+    
+    return date.toLocaleDateString([], { month: 'short', day: 'numeric' }) + 
+           ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   }
 
   /**
@@ -467,6 +606,36 @@ export class ChatView extends ItemView {
     const selectedModelId = this.modelSelectorEl.value;
     if (selectedModelId) {
       this.dependencies.onModelChange(selectedModelId);
+    }
+  }
+
+  /**
+   * Handles creating a new session
+   */
+  private handleNewSession(): void {
+    if (this.dependencies) {
+      this.dependencies.onNewSession();
+      this.refresh();
+    }
+  }
+
+  /**
+   * Handles switching to a different session
+   */
+  private handleSwitchSession(sessionId: string): void {
+    if (this.dependencies) {
+      this.dependencies.onSwitchSession(sessionId);
+      this.refresh();
+    }
+  }
+
+  /**
+   * Handles deleting a session
+   */
+  private handleDeleteSession(sessionId: string): void {
+    if (this.dependencies) {
+      this.dependencies.onDeleteSession(sessionId);
+      this.refresh();
     }
   }
 

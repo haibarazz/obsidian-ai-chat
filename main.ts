@@ -135,6 +135,8 @@ export default class AIChatSidebarPlugin extends Plugin {
       getCurrentModelId: () => this.getCurrentModelId(),
       getMessages: () => this.getSessionMessages(),
       getContextItems: () => this.contextManager.getActiveContext(),
+      getAllSessions: () => this.getAllSessionsInfo(),
+      getCurrentSessionId: () => this.chatStateManager.getCurrentSessionId(),
       onSendMessage: async (content) => this.handleSendMessage(content),
       onSendMessageStream: async (content, onChunk) => this.handleSendMessageStream(content, onChunk),
       onModelChange: (modelId) => this.handleModelChange(modelId),
@@ -142,6 +144,8 @@ export default class AIChatSidebarPlugin extends Plugin {
       onAddFileContext: async () => this.handleAddFileContext(),
       onAddFolderContext: async () => this.handleAddFolderContext(),
       onNewSession: () => this.handleNewSession(),
+      onSwitchSession: (sessionId) => this.handleSwitchSession(sessionId),
+      onDeleteSession: (sessionId) => this.handleDeleteSession(sessionId),
       isStreamingEnabled: () => this.settingsManager.isStreamingEnabled(),
     };
     
@@ -464,6 +468,47 @@ export default class AIChatSidebarPlugin extends Plugin {
     const defaultModelId = this.settingsManager.getDefaultModel()?.id ?? '';
     this.chatStateManager.createSession(defaultModelId);
     this.contextManager.clearContext();
+    this.chatStateManager.saveState();
+    this.refreshChatView();
+  }
+
+  /**
+   * Gets all sessions info for display
+   */
+  private getAllSessionsInfo(): Array<{ id: string; createdAt: number; updatedAt: number; messageCount: number }> {
+    const sessions = this.chatStateManager.getAllSessions();
+    return sessions.map(session => ({
+      id: session.id,
+      createdAt: session.createdAt,
+      updatedAt: session.updatedAt,
+      messageCount: session.messages.length,
+    }));
+  }
+
+  /**
+   * Handles switching to a different session
+   */
+  private handleSwitchSession(sessionId: string): void {
+    this.chatStateManager.switchSession(sessionId);
+    this.contextManager.clearContext();
+    
+    // Load context items from the session
+    const session = this.chatStateManager.getSession(sessionId);
+    if (session) {
+      for (const item of session.contextItems) {
+        this.contextManager.addContextItem(item);
+      }
+    }
+    
+    this.chatStateManager.saveState();
+    this.refreshChatView();
+  }
+
+  /**
+   * Handles deleting a session
+   */
+  private handleDeleteSession(sessionId: string): void {
+    this.chatStateManager.deleteSession(sessionId);
     this.chatStateManager.saveState();
     this.refreshChatView();
   }

@@ -25,16 +25,27 @@
   background-color: var(--background-secondary);
 }
 
-.ai-chat-title {
-  font-size: var(--font-ui-medium);
-  font-weight: var(--font-semibold);
-  color: var(--text-normal);
+.ai-chat-title-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
 
-/* New Session Button */
+.ai-chat-title {
+  font-size: var(--font-ui-medium);
+  font-weight: var(--font-semibold);
+  color: var(--text-normal);
+}
+
+/* Header Buttons Container */
+.ai-chat-header-btns {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* History Button */
+.ai-chat-history-btn,
 .ai-chat-new-session-btn {
   display: flex;
   align-items: center;
@@ -50,16 +61,19 @@
   transition: background-color 0.15s ease, color 0.15s ease;
 }
 
+.ai-chat-history-btn:hover,
 .ai-chat-new-session-btn:hover {
   background-color: var(--background-modifier-hover);
   color: var(--text-normal);
 }
 
+.ai-chat-history-btn:focus-visible,
 .ai-chat-new-session-btn:focus-visible {
   outline: 2px solid var(--interactive-accent);
   outline-offset: 2px;
 }
 
+.ai-chat-history-btn svg,
 .ai-chat-new-session-btn svg {
   width: 16px;
   height: 16px;
@@ -100,6 +114,152 @@
 .ai-chat-model-selector:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* ==================== Sessions Area (Chat History) ==================== */
+.ai-chat-sessions-area {
+  border-bottom: 1px solid var(--background-modifier-border);
+  background-color: var(--background-primary);
+  overflow: hidden;
+  transition: max-height 0.2s ease, padding 0.2s ease;
+}
+
+/* Collapsed state - hidden */
+.ai-chat-sessions-collapsed {
+  max-height: 0;
+  padding: 0 12px;
+  border-bottom: none;
+}
+
+/* Expanded state - visible */
+.ai-chat-sessions-expanded {
+  max-height: 250px;
+  padding: 8px 12px;
+  overflow-y: auto;
+}
+
+.ai-chat-sessions-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.ai-chat-sessions-label {
+  font-size: var(--font-ui-small);
+  font-weight: var(--font-medium);
+  color: var(--text-muted);
+}
+
+.ai-chat-sessions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ai-chat-sessions-empty {
+  font-size: var(--font-ui-smaller);
+  color: var(--text-faint);
+  font-style: italic;
+}
+
+.ai-chat-session-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 8px;
+  border-radius: var(--radius-s);
+  background-color: var(--background-secondary);
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.ai-chat-session-item:hover {
+  background-color: var(--background-modifier-hover);
+}
+
+.ai-chat-session-item-active {
+  background-color: var(--interactive-accent);
+  color: var(--text-on-accent);
+}
+
+.ai-chat-session-item-active:hover {
+  background-color: var(--interactive-accent-hover);
+}
+
+.ai-chat-session-info {
+  flex: 1;
+  min-width: 0;
+  cursor: pointer;
+}
+
+.ai-chat-session-title {
+  font-size: var(--font-ui-small);
+  font-weight: var(--font-medium);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ai-chat-session-meta {
+  font-size: var(--font-ui-smaller);
+  opacity: 0.7;
+}
+
+.ai-chat-session-item-active .ai-chat-session-meta {
+  color: var(--text-on-accent);
+}
+
+.ai-chat-session-delete-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-s);
+  background-color: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+}
+
+.ai-chat-session-item:hover .ai-chat-session-delete-btn {
+  opacity: 1;
+}
+
+.ai-chat-session-item-active .ai-chat-session-delete-btn {
+  color: var(--text-on-accent);
+}
+
+.ai-chat-session-delete-btn:hover {
+  background-color: var(--background-modifier-error);
+  color: var(--text-on-accent);
+}
+
+.ai-chat-session-delete-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Scrollbar for sessions area */
+.ai-chat-sessions-area::-webkit-scrollbar {
+  width: 6px;
+}
+
+.ai-chat-sessions-area::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.ai-chat-sessions-area::-webkit-scrollbar-thumb {
+  background-color: var(--background-modifier-border);
+  border-radius: 3px;
+}
+
+.ai-chat-sessions-area::-webkit-scrollbar-thumb:hover {
+  background-color: var(--background-modifier-border-hover);
 }
 
 /* ==================== Context Area ==================== */

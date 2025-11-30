@@ -325,6 +325,13 @@ export class ContextManager {
   }
 
   /**
+   * Adds a single context item directly
+   */
+  addContextItem(item: ContextItem): void {
+    this.contextItems.set(item.id, item);
+  }
+
+  /**
    * Exports context items for saving
    */
   exportContext(): ContextItem[] {
