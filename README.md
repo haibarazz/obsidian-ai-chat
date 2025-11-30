@@ -1,275 +1,258 @@
-# AI Chat Sidebar
+# AI 聊天侧边栏
 
-An integrated AI chat interface for Obsidian that allows you to interact with various AI models while leveraging your vault content as context.
+一个强大的 Obsidian AI 聊天界面插件，无缝集成到你的笔记库中，让你可以与多个 AI 模型交互，同时利用笔记内容作为上下文。
 
-## Features
+**当前版本：** 1.0.0
 
-- **Multiple AI Provider Support**: Configure OpenAI, Anthropic, or custom AI providers
-- **Dynamic Model Switching**: Switch between different AI models mid-conversation
-- **Context-Aware Conversations**: Include files, folders, or selected text as context
-- **Persistent Chat History**: Your conversations are saved and restored across sessions
-- **Streaming Responses**: See AI responses appear in real-time (when supported by provider)
-- **Sidebar Integration**: Chat interface lives in Obsidian's sidebar for seamless workflow
-- **Privacy-Focused**: All API requests go directly to your configured providers—no third-party tracking
+## ✨ 核心功能
 
-## Installation
+### 🤖 AI 集成
+- **多提供商支持**：支持 OpenAI、Anthropic 或任何兼容 OpenAI 的自定义 API
+- **动态模型切换**：对话中随时切换 AI 模型，不丢失上下文
+- **流式响应**：实时观看 AI 回复逐字显示
+- **会话管理**：持久化聊天历史，轻松切换会话
 
-### From Obsidian Community Plugins (Recommended)
+### 📝 上下文管理
+- **文件和文件夹上下文**：将整个文件或文件夹添加为对话上下文
+- **实时选择跟踪**：自动包含你当前选中的文本，带有可视化反馈
+- **智能上下文显示**：清晰的视觉指示器区分永久和临时上下文
+- **便捷上下文控制**：一键添加或移除上下文项
 
-1. Open **Settings → Community plugins**
-2. Select **Browse** and search for "AI Chat Sidebar"
-3. Select **Install**, then **Enable**
+### 🎨 富文本渲染
+- **完整 Markdown 支持**：标题、列表、链接、引用等
+- **LaTeX 公式渲染**：使用 MathJax 渲染精美的数学符号
+- **语法高亮**：支持 100+ 种编程语言的代码高亮
+- **紧凑布局**：优化的间距，阅读更舒适
 
-### Manual Installation
+### 📋 复制功能
+- **一键复制**：复制完整消息、代码块或 LaTeX 公式
+- **智能复制**：代码块复制时去除 Markdown 语法，LaTeX 复制源代码
+- **视觉反馈**：复制成功后即时显示确认
 
-1. Download the latest release files (`main.js`, `manifest.json`, `styles.css`) from the [releases page](https://github.com/your-repo/releases)
-2. Create a folder named `ai-chat-sidebar` in your vault's `.obsidian/plugins/` directory
-3. Copy the downloaded files into the `ai-chat-sidebar` folder
-4. Reload Obsidian
-5. Enable the plugin in **Settings → Community plugins**
+### 🔒 隐私与安全
+- **直接 API 调用**：无第三方中介
+- **本地存储**：所有数据保存在你的笔记库中
+- **无遥测**：零追踪和分析
+- **加密密钥**：API 密钥安全存储
 
-## Configuration
+## 📦 安装
 
-### Setting Up AI Providers
+### 从 Obsidian 社区插件安装（推荐）
 
-1. Open **Settings → AI Chat Sidebar**
-2. In the **Provider Management** section, select **Add Provider**
-3. Configure your provider:
-   - **Provider Name**: A friendly name (e.g., "OpenAI", "Anthropic")
-   - **Provider Type**: Select OpenAI, Anthropic, or Custom
-   - **Base URL**: The API endpoint (e.g., `https://api.openai.com/v1`)
-   - **API Key**: Your API key from the provider
-   - **Enabled**: Toggle to enable/disable the provider
+1. 打开 **设置 → 第三方插件**
+2. 点击 **浏览** 并搜索 "AI Chat Sidebar"
+3. 点击 **安装**，然后 **启用**
 
-**Example OpenAI Configuration:**
-- Provider Name: `OpenAI`
-- Provider Type: `OpenAI`
-- Base URL: `https://api.openai.com/v1`
-- API Key: `sk-...` (your OpenAI API key)
+### 手动安装
 
-**Example Anthropic Configuration:**
-- Provider Name: `Anthropic`
-- Provider Type: `Anthropic`
-- Base URL: `https://api.anthropic.com`
-- API Key: Your Anthropic API key
+1. 从 [最新版本](https://github.com/haibarazz/obsidian-ai-chats) 下载 `main.js`、`manifest.json` 和 `styles.css`
+2. 创建文件夹：`<笔记库>/.obsidian/plugins/ai-chat-sidebar/`
+3. 将下载的文件复制到该文件夹
+4. 重新加载 Obsidian 并在 **设置 → 第三方插件** 中启用插件
 
-**Example Custom Provider:**
-- Provider Name: `Local LLM`
-- Provider Type: `Custom`
-- Base URL: `http://localhost:11434/v1` (e.g., for Ollama)
-- API Key: (leave empty if not required)
+## ⚙️ 快速开始
 
-### Adding AI Models
+### 1. 配置 AI 提供商
 
-1. In **Settings → AI Chat Sidebar**, go to the **Model Management** section
-2. Select **Add Model**
-3. Configure your model:
-   - **Model Name**: Display name (e.g., "GPT-4", "Claude 3 Opus")
-   - **Provider**: Select from your configured providers
-   - **Model Identifier**: The API model ID (e.g., `gpt-4`, `claude-3-opus-20240229`)
-   - **Set as Default**: Check to use this model for new chat sessions
+打开 **设置 → AI Chat Sidebar → 提供商管理 → 添加提供商**
 
-**Example Models:**
-- OpenAI GPT-4: `gpt-4`
-- OpenAI GPT-3.5 Turbo: `gpt-3.5-turbo`
-- Anthropic Claude 3 Opus: `claude-3-opus-20240229`
-- Anthropic Claude 3 Sonnet: `claude-3-sonnet-20240229`
+**OpenAI 示例：**
+```
+提供商名称：OpenAI
+提供商类型：OpenAI
+基础 URL：https://api.openai.com/v1
+API 密钥：sk-...
+```
 
-### General Settings
+**Anthropic 示例：**
+```
+提供商名称：Anthropic
+提供商类型：Anthropic
+基础 URL：https://api.anthropic.com
+API 密钥：sk-ant-...
+```
 
-- **Max History Size**: Maximum number of messages to keep in history (default: 50)
-- **Enable Streaming**: Show responses token-by-token as they arrive (default: enabled)
+**自定义/本地示例（Ollama）：**
+```
+提供商名称：本地 LLM
+提供商类型：Custom
+基础 URL：http://localhost:11434/v1
+API 密钥：（留空）
+```
 
-## Usage
+### 2. 添加 AI 模型
 
-### Opening the Chat Sidebar
+打开 **设置 → AI Chat Sidebar → 模型管理 → 添加模型**
 
-Use any of these methods:
-- Command palette: **Open AI Chat** (Ctrl/Cmd + P, then type "Open AI Chat")
-- Ribbon icon: Click the chat icon in the left sidebar
+**常用模型：**
+- OpenAI：`gpt-4`、`gpt-4-turbo`、`gpt-3.5-turbo`
+- Anthropic：`claude-3-opus-20240229`、`claude-3-sonnet-20240229`、`claude-3-haiku-20240307`
+- 本地：`llama2`、`mistral`、`codellama`（取决于你的设置）
 
-### Sending Messages
+### 3. 开始聊天
 
-1. Type your message in the input field at the bottom of the chat sidebar
-2. Press **Enter** to send (or click the send button)
-3. Press **Shift + Enter** to add a new line without sending
+- 打开聊天：**Ctrl/Cmd + P** → "Open AI Chat"
+- 或点击功能区的聊天图标
 
-### Switching Models
+## 🚀 使用指南
 
-1. Click the model selector dropdown at the top of the chat sidebar
-2. Select a different model from the list
-3. Your conversation history is preserved when switching models
+### 基本操作
 
-### Adding Context
+**打开聊天：**
+- 命令：`Ctrl/Cmd + P` → "Open AI Chat"
+- 或点击功能区的聊天图标
 
-#### Adding Files
-1. Click the **Add Context** button in the chat sidebar
-2. Select **File** from the picker
-3. Choose the file you want to include
-4. The file content will be added to your conversation context
+**发送消息：**
+- 输入后按 `Enter` 发送
+- `Shift + Enter` 换行
 
-#### Adding Folders
-1. Click the **Add Context** button
-2. Select **Folder** from the picker
-3. Choose a folder—all markdown files within will be included as context
+**切换模型：**
+- 使用聊天侧边栏顶部的下拉菜单
+- 切换时保留历史记录
 
-#### Using Selected Text
-1. Select text in any note
-2. Open the command palette (Ctrl/Cmd + P)
-3. Run **Chat with selection**
-4. The chat sidebar opens with your selected text as context
+**新建会话：**
+- 命令：`Ctrl/Cmd + P` → "New chat session"
+- 之前的对话会自动保存
 
-#### Removing Context
-- Click the **×** button on any context tag to remove it from the conversation
+### 上下文管理
 
-### Starting a New Session
+**添加文件：**
+1. 点击 **添加上下文** 按钮
+2. 选择 **文件** 并选择你的文件
+3. 文件内容将包含在所有消息中
 
-1. Open the command palette (Ctrl/Cmd + P)
-2. Run **New chat session**
-3. Your previous conversation is saved and a fresh session begins
+**添加文件夹：**
+1. 点击 **添加上下文** 按钮
+2. 选择 **文件夹**
+3. 文件夹中的所有 Markdown 文件都会被包含
 
-## Keyboard Shortcuts
+**实时选择（自动）：**
+- 只需在任何笔记中 **选择文本**
+- 出现眼睛图标（👁️）显示你的选择
+- 发送消息时选择的内容会 **自动包含**
+- **临时性** - 不会占用上下文区域
+- 清除选择即可移除
 
-- **Enter**: Send message
-- **Shift + Enter**: New line in message input
-- **Ctrl/Cmd + P** → "Open AI Chat": Open chat sidebar
-- **Ctrl/Cmd + P** → "Chat with selection": Open chat with selected text
-- **Ctrl/Cmd + P** → "New chat session": Start a new conversation
+**使用选择聊天：**
+- 选择文本 → `Ctrl/Cmd + P` → "Chat with selection"
+- 打开聊天并将选择作为上下文
 
-## Troubleshooting
+**移除上下文：**
+- 点击任何上下文标签上的 **×**
+- 实时选择在清除时自动移除
 
-### Plugin doesn't load after installation
+### 富文本功能
 
-- Ensure `main.js`, `manifest.json`, and `styles.css` are in `<Vault>/.obsidian/plugins/ai-chat-sidebar/`
-- Reload Obsidian (**Settings → Community plugins → Reload**)
-- Check that the plugin is enabled in **Settings → Community plugins**
+**Markdown 渲染：**
+- 标题、**粗体**、*斜体*、`行内代码`
+- 有序和无序列表
+- 可点击的链接和引用块
+- 紧凑、易读的布局
 
-### "Invalid API Key" error
+**代码语法高亮：**
+````
+```python
+def hello():
+    print("你好！")
+```
+````
+- 支持 100+ 种语言
+- 悬停显示复制按钮
+- 复制时去除 Markdown 语法
 
-- Verify your API key is correct in **Settings → AI Chat Sidebar → Provider Management**
-- Ensure the provider is enabled
-- Check that your API key has the necessary permissions with your provider
+**LaTeX 公式：**
+- 行内：`$E = mc^2$`
+- 块级：`$$\int_0^1 x^2 dx$$`
+- 复制按钮复制 LaTeX 源代码
+- 完美粘贴到笔记中
 
-### No response from AI
+**复制功能：**
+- **消息**：每条回复右上角的复制按钮
+- **代码**：悬停在代码块上复制
+- **LaTeX**：点击复制公式源代码
+- 视觉对勾（✓）确认复制
 
-- Check your internet connection
-- Verify the provider's base URL is correct
-- Ensure the model identifier matches your provider's API (e.g., `gpt-4`, not `GPT-4`)
-- Check the Obsidian developer console (Ctrl/Cmd + Shift + I) for detailed error messages
+## 💡 使用技巧
 
-### Rate limit errors
+### 有效使用实时选择
+- **快速引用**：选择文本的同时提问
+- **迭代编辑**：保持文本选中状态，不断优化问题
+- **保持整洁**：实时选择不会占用永久上下文
+- **组合使用**：与永久文件上下文一起使用
 
-- Your provider may have rate limits on API requests
-- Wait a few moments before sending another message
-- Consider upgrading your API plan with the provider
+### 处理代码
+- 请求特定语言以获得语法高亮
+- 使用复制按钮快速获取和测试代码片段
+- 同一对话中支持多种语言
 
-### Context not being included
+### 数学内容
+- 要求 AI 使用 LaTeX 符号表示公式
+- 复制 LaTeX 源代码粘贴到笔记中
+- 使用 `$...$` 表示行内公式，`$$...$$` 表示块级公式
 
-- Verify context items appear as tags in the chat interface
-- Check that files exist and are readable
-- For folders, ensure they contain markdown files
-- Remove and re-add context items if needed
+### 组织对话
+- 复制重要回复保存到笔记中
+- 根据需要提取单个代码块
+- 通过复制 LaTeX 建立公式库
 
-### Streaming not working
+## 🛠️ 开发
 
-- Ensure **Enable Streaming** is checked in **Settings → AI Chat Sidebar**
-- Some custom providers may not support streaming
-- Check provider documentation for streaming support
-
-### Chat history not persisting
-
-- Ensure Obsidian has write permissions to your vault
-- Check available disk space
-- Try manually saving settings in **Settings → AI Chat Sidebar**
-
-## Privacy and Security
-
-### Data Privacy
-
-- **No telemetry**: This plugin does not collect any usage data or analytics
-- **Direct API calls**: All requests go directly from your device to your configured AI providers
-- **Local storage**: Chat history and settings are stored locally in your vault
-- **No third parties**: No data is sent to any third-party services beyond your configured providers
-
-### API Key Security
-
-- API keys are stored in Obsidian's encrypted data storage
-- Keys are never logged or displayed in full (only last 4 characters shown in UI)
-- Keys are transmitted only to your configured provider endpoints via HTTPS
-
-### Content Privacy
-
-- You control what content is sent to AI providers
-- Only explicitly added context (files, folders, selections) is included in requests
-- Your vault content is never accessed without your explicit action
-- Consider your provider's data retention policies when sharing sensitive information
-
-### Best Practices
-
-- Use API keys with minimal necessary permissions
-- Avoid including sensitive personal information in conversations
-- Review your provider's privacy policy and terms of service
-- For sensitive vaults, consider using local/self-hosted AI providers
-- Regularly rotate API keys as a security precaution
-
-## Development
-
-### Building from Source
+### 从源代码构建
 
 ```bash
-# Clone the repository
+# 克隆仓库
 git clone https://github.com/your-repo/ai-chat-sidebar.git
 cd ai-chat-sidebar
 
-# Install dependencies
+# 安装依赖
 npm install
 
-# Build for production
+# 生产构建
 npm run build
 
-# Or run in development mode with auto-rebuild
+# 或在开发模式下运行（自动重建）
 npm run dev
 ```
 
-### Running Tests
+### 运行测试
 
 ```bash
-# Run all tests
+# 运行所有测试
 npm test
 
-# Run tests in watch mode
+# 监视模式运行测试
 npm run test:watch
 
-# Run tests with coverage
+# 运行测试并生成覆盖率报告
 npm run test:coverage
 ```
 
-### Project Structure
+### 项目结构
 
 ```
 src/
-  commands/       # Command implementations
-  context/        # Context management
-  services/       # AI service client
-  settings/       # Settings management
-  state/          # Chat state management
-  ui/             # UI components
-  utils/          # Utility functions
-  types.ts        # TypeScript interfaces
-main.ts           # Plugin entry point
+  commands/       # 命令实现
+  context/        # 上下文管理（包括实时选择）
+  services/       # AI 服务客户端
+  settings/       # 设置管理
+  state/          # 聊天状态管理
+  ui/             # UI 组件（聊天视图、Markdown 渲染器、复制管理器）
+  utils/          # 工具函数
+  types.ts        # TypeScript 接口
+main.ts           # 插件入口
+styles.css        # 样式
 ```
 
-## Support
 
-If you encounter issues or have feature requests:
-- Check the [troubleshooting section](#troubleshooting) above
-- Search [existing issues](https://github.com/your-repo/issues)
-- Open a [new issue](https://github.com/your-repo/issues/new) with details
+## 📊 更新日志
 
-## License
-
-[MIT License](LICENSE)
-
-## Acknowledgments
-
-Built with the [Obsidian API](https://github.com/obsidianmd/obsidian-api)
+### v1.0.0（当前版本）
+- 首次发布
+- 多提供商 AI 支持（OpenAI、Anthropic、自定义）
+- 带有视觉指示器的实时选择跟踪
+- 支持 LaTeX 的富 Markdown 渲染
+- 代码语法高亮
+- 一键复制消息、代码和公式
+- 持久化聊天历史和会话管理
+- 流式响应支持
+- 注重隐私的架构

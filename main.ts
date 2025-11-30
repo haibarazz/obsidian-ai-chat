@@ -5,16 +5,16 @@
  * Requirements: 1.1, 1.3, 10.6
  */
 
-import { Plugin, WorkspaceLeaf, TFile, TFolder, Notice } from 'obsidian';
+import { Plugin, WorkspaceLeaf, TFile, TFolder, Notice, MarkdownView, Editor } from 'obsidian';
 import { VIEW_TYPE_CHAT, DEFAULT_SETTINGS } from './src/constants';
 import type { PluginSettings, ChatMessage, ContextItem } from './src/types';
 
 // Import modules
 import { SettingsManager, AISettingsTab } from './src/settings';
 import { ChatStateManager } from './src/state';
-import { ContextManager, createObsidianAdapter } from './src/context';
+import { ContextManager, createObsidianAdapter, LiveSelectionManager } from './src/context';
 import { AIServiceClient, APIError } from './src/services';
-import { ChatView, type ChatViewDependencies } from './src/ui';
+import { ChatView, type ChatViewDependencies, type LiveSelectionInfo } from './src/ui';
 import { registerCommands, type CommandDependencies } from './src/commands';
 
 /**
@@ -27,9 +27,17 @@ export default class AIChatSidebarPlugin extends Plugin {
   private chatStateManager!: ChatStateManager;
   private contextManager!: ContextManager;
   private aiServiceClient!: AIServiceClient;
+  private liveSelectionManager!: LiveSelectionManager;
 
   // Track sidebar state for persistence
   private sidebarWasOpen = false;
+
+  // Debounce timer for selection updates
+  private selectionDebounceTimer: number | null = null;
+  private readonly SELECTION_DEBOUNCE_MS = 150;
+
+  // Track the last known selection to preserve it when focus is lost
+  private lastKnownSelection: { content: string; sourcePath?: string } | null = null;
 
   /**
    * Plugin initialization
@@ -68,6 +76,13 @@ export default class AIChatSidebarPlugin extends Plugin {
 
     // Initialize AI service client
     this.aiServiceClient = new AIServiceClient();
+
+    // Initialize live selection manager
+    // Requirements: 11.1 - Automatically detect and track text selection
+    this.liveSelectionManager = new LiveSelectionManager();
+    this.liveSelectionManager.setOnChangeCallback(() => {
+      this.refreshChatView();
+    });
 
     // Register the chat view
     this.registerView(
@@ -110,6 +125,63 @@ export default class AIChatSidebarPlugin extends Plugin {
         this.trackSidebarState();
       })
     );
+
+    // Register editor selection change event listener
+    // Requirements: 11.1 - WHEN the user selects text in the editor THEN the Plugin SHALL automatically detect and track the selection
+    // Requirements: 11.4 - WHEN the user changes the text selection THEN the Plugin SHALL update the live selection context
+    // Requirements: 11.5 - WHEN the user clears the text selection THEN the Plugin SHALL remove the live selection indicator
+    
+    // Listen for selection changes in the document
+    // This fires whenever the user selects or deselects text anywhere
+    // IMPORTANT: We capture the selection immediately when it changes, before focus is lost
+    this.registerDomEvent(document, 'selectionchange', () => {
+      const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
+      if (activeView) {
+        this.handleEditorSelectionChange(activeView.editor);
+      }
+    });
+
+    // Listen for mouseup to capture selection immediately after user finishes selecting
+    // This ensures we capture the selection BEFORE the user clicks elsewhere
+    this.registerDomEvent(document, 'mouseup', (evt: MouseEvent) => {
+      const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
+      if (activeView) {
+        // Use a small delay to ensure selection is finalized
+        setTimeout(() => {
+          this.handleEditorSelectionChange(activeView.editor);
+        }, 10);
+      } else {
+        // If clicking outside the editor (e.g., in chat sidebar), preserve the selection
+        // Don't clear it
+      }
+    });
+
+    // Listen for keyboard selection (Shift+Arrow keys, Ctrl+A, etc.)
+    this.registerDomEvent(document, 'keyup', (evt: KeyboardEvent) => {
+      // Only process if it's a selection-related key
+      if (evt.shiftKey || evt.key === 'ArrowLeft' || evt.key === 'ArrowRight' || 
+          evt.key === 'ArrowUp' || evt.key === 'ArrowDown' || 
+          (evt.ctrlKey && evt.key === 'a')) {
+        const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
+        if (activeView) {
+          this.handleEditorSelectionChange(activeView.editor);
+        }
+      }
+    });
+
+    // Also listen for active leaf changes to track selection in newly focused editors
+    this.registerEvent(
+      this.app.workspace.on('active-leaf-change', () => {
+        const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
+        if (activeView) {
+          this.handleEditorSelectionChange(activeView.editor);
+        } else {
+          // Don't clear selection when leaving editor - keep it for the chat
+          // Only clear if there was no selection to begin with
+          // This allows the selection to persist when clicking the chat sidebar
+        }
+      })
+    );
   }
 
   /**
@@ -135,12 +207,14 @@ export default class AIChatSidebarPlugin extends Plugin {
       getCurrentModelId: () => this.getCurrentModelId(),
       getMessages: () => this.getSessionMessages(),
       getContextItems: () => this.contextManager.getActiveContext(),
+      getLiveSelection: () => this.getLiveSelectionInfo(),
       getAllSessions: () => this.getAllSessionsInfo(),
       getCurrentSessionId: () => this.chatStateManager.getCurrentSessionId(),
       onSendMessage: async (content) => this.handleSendMessage(content),
       onSendMessageStream: async (content, onChunk) => this.handleSendMessageStream(content, onChunk),
       onModelChange: (modelId) => this.handleModelChange(modelId),
       onRemoveContext: (contextId) => this.handleRemoveContext(contextId),
+      onClearLiveSelection: () => this.handleClearLiveSelection(),
       onAddFileContext: async () => this.handleAddFileContext(),
       onAddFolderContext: async () => this.handleAddFolderContext(),
       onNewSession: () => this.handleNewSession(),
@@ -237,6 +311,63 @@ export default class AIChatSidebarPlugin extends Plugin {
   }
 
   /**
+   * Handles editor selection changes with debouncing
+   * Requirements: 11.1 - Automatically detect and track text selection
+   * Requirements: 11.4 - Update live selection when selection changes
+   * Requirements: 11.5 - Remove live selection indicator when selection is cleared
+   */
+  private handleEditorSelectionChange(editor: Editor): void {
+    // Clear any existing debounce timer
+    if (this.selectionDebounceTimer !== null) {
+      window.clearTimeout(this.selectionDebounceTimer);
+    }
+
+    // Debounce selection updates to avoid excessive updates
+    this.selectionDebounceTimer = window.setTimeout(() => {
+      this.selectionDebounceTimer = null;
+      this.updateLiveSelection(editor);
+    }, this.SELECTION_DEBOUNCE_MS);
+  }
+
+  /**
+   * Updates the live selection based on current editor state
+   * IMPORTANT: This method preserves selection even when focus is lost
+   */
+  private updateLiveSelection(editor: Editor): void {
+    const selection = editor.getSelection();
+    
+    if (selection && selection.trim().length > 0) {
+      // Get the source file path if available
+      const activeFile = this.app.workspace.getActiveFile();
+      const sourcePath = activeFile?.path;
+      
+      // Save this as the last known selection
+      this.lastKnownSelection = { content: selection, sourcePath };
+      
+      // Set the selection - this will be preserved even when focus is lost
+      this.liveSelectionManager.setSelection(selection, sourcePath);
+    } else if (this.lastKnownSelection) {
+      // If editor.getSelection() returns empty but we have a last known selection,
+      // it might be because focus was lost. Keep the last known selection.
+      // Only clear if the user explicitly deselected in the editor.
+      
+      // Check if we're still in an editor with focus
+      const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
+      const editorHasFocus = activeView && document.activeElement?.closest('.cm-editor');
+      
+      if (editorHasFocus) {
+        // User is in the editor and deselected - clear it
+        this.lastKnownSelection = null;
+        this.liveSelectionManager.clearSelection();
+      }
+      // Otherwise, keep the last known selection (focus was lost to chat sidebar)
+    } else {
+      // No selection and no last known selection - clear it
+      this.liveSelectionManager.clearSelection();
+    }
+  }
+
+  /**
    * Gets the current model ID from the active session
    */
   private getCurrentModelId(): string | null {
@@ -256,7 +387,51 @@ export default class AIChatSidebarPlugin extends Plugin {
   }
 
   /**
+   * Gets live selection info for the chat view
+   * Requirements: 11.2, 11.3 - Display live selection indicator with preview
+   */
+  private getLiveSelectionInfo(): LiveSelectionInfo {
+    return {
+      hasSelection: this.liveSelectionManager.hasSelection(),
+      preview: this.liveSelectionManager.getPreview(100),
+      sourcePath: this.liveSelectionManager.getSourcePath(),
+    };
+  }
+
+  /**
+   * Gets context items including live selection for API requests
+   * Requirements: 11.6 - Include live selection in API request
+   * Requirements: 11.7 - Live selection is NOT persisted as permanent context item
+   */
+  private getContextItemsWithLiveSelection(): ContextItem[] {
+    // Get permanent context items
+    const contextItems = [...this.contextManager.getActiveContext()];
+
+    // Add live selection as a temporary context item (not persisted)
+    if (this.liveSelectionManager.hasSelection()) {
+      const selection = this.liveSelectionManager.getSelection();
+      if (selection) {
+        const liveSelectionItem: ContextItem = {
+          id: `live-selection-${selection.timestamp}`,
+          type: 'selection',
+          path: selection.sourcePath,
+          content: selection.content,
+          displayName: selection.sourcePath 
+            ? `Live Selection from ${selection.sourcePath.split('/').pop()}`
+            : 'Live Selection',
+        };
+        // Prepend live selection so it appears first in context
+        contextItems.unshift(liveSelectionItem);
+      }
+    }
+
+    return contextItems;
+  }
+
+  /**
    * Handles sending a non-streaming message
+   * Requirements: 11.6 - Include live selection in API request
+   * Requirements: 11.7 - Live selection is NOT persisted as permanent context item
    */
   private async handleSendMessage(content: string): Promise<void> {
     // Ensure we have a session
@@ -291,7 +466,11 @@ export default class AIChatSidebarPlugin extends Plugin {
 
     // Get all messages for context
     const messages = this.chatStateManager.getMessages(session.id);
-    const contextItems = this.contextManager.getActiveContext();
+    
+    // Get permanent context items and include live selection (if any)
+    // Requirements: 11.6 - Include live selection in API request
+    // Requirements: 11.7 - Live selection is NOT saved to session context items
+    const contextItems = this.getContextItemsWithLiveSelection();
 
     try {
       // Send message to AI
@@ -322,6 +501,8 @@ export default class AIChatSidebarPlugin extends Plugin {
 
   /**
    * Handles sending a streaming message
+   * Requirements: 11.6 - Include live selection in API request
+   * Requirements: 11.7 - Live selection is NOT persisted as permanent context item
    */
   private async handleSendMessageStream(
     content: string,
@@ -359,7 +540,11 @@ export default class AIChatSidebarPlugin extends Plugin {
 
     // Get all messages for context
     const messages = this.chatStateManager.getMessages(session.id);
-    const contextItems = this.contextManager.getActiveContext();
+    
+    // Get permanent context items and include live selection (if any)
+    // Requirements: 11.6 - Include live selection in API request
+    // Requirements: 11.7 - Live selection is NOT saved to session context items
+    const contextItems = this.getContextItemsWithLiveSelection();
 
     // Collect the full response
     let fullResponse = '';
@@ -411,6 +596,15 @@ export default class AIChatSidebarPlugin extends Plugin {
    */
   private handleRemoveContext(contextId: string): void {
     this.contextManager.removeContext(contextId);
+  }
+
+  /**
+   * Handles clearing the live selection
+   * This allows users to manually clear the selection by clicking the X button
+   */
+  private handleClearLiveSelection(): void {
+    this.lastKnownSelection = null;
+    this.liveSelectionManager.clearSelection();
   }
 
   /**
