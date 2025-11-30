@@ -1,11 +1,10 @@
 {
-	"id": "sample-plugin",
-	"name": "Sample Plugin",
+	"id": "ai-chat-sidebar",
+	"name": "AI Chat Sidebar",
 	"version": "1.0.0",
-	"minAppVersion": "0.15.0",
-	"description": "Demonstrates some of the capabilities of the Obsidian API.",
-	"author": "Obsidian",
-	"authorUrl": "https://obsidian.md",
-	"fundingUrl": "https://obsidian.md/pricing",
+	"minAppVersion": "1.0.0",
+	"description": "An integrated AI chat interface within Obsidian's sidebar, allowing interaction with various AI models while leveraging vault content as context.",
+	"author": "",
+	"authorUrl": "",
 	"isDesktopOnly": false
 }
